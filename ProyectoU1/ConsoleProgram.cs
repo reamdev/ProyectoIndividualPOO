@@ -1,17 +1,18 @@
 ﻿using ProyectoU1.gestion;
 using ProyectoU1.modelo;
+using ProyectoU1.utils;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace ProyectoU1
 {
-
+    // Gestiona la interaccion del usuario mediante la consola.
     internal class ConsoleProgram
     {
+        // Atributos privados para controlar la ejecucion y acceder al negocio.
         private bool ejecucion = true;
         private Distribuidora distribuidora;
 
+        // Constructor: recibe la distribuidora que utilizara la aplicacion.
         public ConsoleProgram(Distribuidora distribuidora)
         {
             if (distribuidora == null) throw new ArgumentNullException(nameof(distribuidora));
@@ -19,13 +20,16 @@ namespace ProyectoU1
             this.distribuidora = distribuidora;
         }
 
+        // Presenta el menu y ejecuta la opcion seleccionada.
         private void Menu()
         {
             try
             {
-                Console.WriteLine("====================================");
-                Console.WriteLine("       DISTRIBUIDORA DE AGUA");
-                Console.WriteLine("====================================");
+                ImprimirEnConsola.ColorPersonalizado(
+                    "====================================\n" +
+                    "       DISTRIBUIDORA DE AGUA\n" +
+                    "====================================\n"
+                , ConsoleColor.Blue);
                 Console.WriteLine("1.Registrar entrega");
                 Console.WriteLine("2.Abastecer bidones");
                 Console.WriteLine("3.Consultar inventario");
@@ -56,30 +60,52 @@ namespace ProyectoU1
                         break;
                     case 0:
                         ejecucion = false;
-                        Console.WriteLine("Adios!");
+                        ImprimirEnConsola.Info("Adios!");
                         break;
                     default:
-                        Console.WriteLine("Opcion incorrecta o no disponible");
+                        ImprimirEnConsola.Warning("Opcion incorrecta o no disponible");
                         break;
                 }
+
+                Console.WriteLine();
             } catch(FormatException)
             {
-                Console.WriteLine("Ingrese un valor valido!\n");
+                ImprimirEnConsola.Error("Ingrese un valor valido!\n");
+                Console.WriteLine();
             } catch (ArgumentException ex)
             {
-                Console.WriteLine("Error: " + ex.Message);
+                ImprimirEnConsola.Error("Error: " + ex.Message);
+                Console.WriteLine();
             } catch (OverflowException)
             {
-                Console.WriteLine("El numero ingresado es demasiado grande.");
+                ImprimirEnConsola.Error("El numero ingresado es demasiado grande.");
+                Console.WriteLine();
+            } catch (Exception e)
+            {
+                ImprimirEnConsola.Error($"Error: {e.Message}");
+                Console.WriteLine();
             }
         }
 
+        // Solicita los datos y confirma una recarga o compra con bidon.
         private void RegistrarEntrega()
         {
-            Console.WriteLine("===== REGISTRAR ENTREGA =====");
-            Console.Write("Nombre del cliente: ");
-            
-            string nombre = Console.ReadLine();
+            ImprimirEnConsola.Info("===== REGISTRAR ENTREGA =====");
+
+            string nombre;
+            do
+            {
+                Console.Write("Nombre del cliente: ");
+
+                nombre = Console.ReadLine();
+
+                if (!string.IsNullOrWhiteSpace(nombre))
+                    break;
+
+                ImprimirEnConsola.Error("El nombre no puede estar vacio.");
+                Console.WriteLine();
+            } while (true);
+
             Cliente cliente = new Cliente(nombre);
 
             Console.WriteLine();
@@ -87,26 +113,27 @@ namespace ProyectoU1
             Console.WriteLine("1. Recarga - S/ 10.00");
             Console.WriteLine("2. Compra con bidon - S/ 35.00");
 
-            Console.Write("Seleccione una opcion: ");
-            if (!int.TryParse(Console.ReadLine(), out int tipo))
+            int tipo;
+            do
             {
-                Console.WriteLine("Tipo de operacion invalido.");
-                return;
-            }
+                Console.Write("Seleccione una opcion: ");
+                if (int.TryParse(Console.ReadLine(), out tipo) && (tipo == 1 || tipo == 2)) break;
 
-            if (tipo != 1 && tipo != 2)
+                ImprimirEnConsola.Error("Opcion Incorrecta.");
+                Console.WriteLine();
+            } while (true);
+
+            int cantidad;
+            do
             {
-                Console.WriteLine("Tipo de operacion no disponible.");
-                return;
-            }
+                Console.Write("Cantidad de bidones: ");
+                if (int.TryParse(Console.ReadLine(), out cantidad) && cantidad > 0) break;
 
-            Console.Write("Cantidad de bidones: ");
-            if (!int.TryParse(Console.ReadLine(), out int cantidad))
-            {
-                Console.WriteLine("Ingrese una cantidad valida.");
-                return;
-            }
+                ImprimirEnConsola.Error("Ingrese una cantidad mayor que cero.");
+                Console.WriteLine();
+            } while (true);
 
+            // Referencia de la clase base: puede contener Recarga o CompraBidon.
             OperacionAgua operacion;
             if (tipo == 1)
             {
@@ -117,67 +144,94 @@ namespace ProyectoU1
             }
 
             Console.WriteLine();
-            Console.WriteLine("===== RESUMEN DE ENTREGA =====");
+            ImprimirEnConsola.Info("===== RESUMEN DE ENTREGA =====");
             Console.WriteLine("Cliente: " + operacion.Cliente.Nombre);
             Console.WriteLine("Operacion: " + operacion.ObtenerTipo());
             Console.WriteLine("Cantidad: " + operacion.Cantidad);
             Console.WriteLine("Precio unitario: S/ " + operacion.PrecioUnitario);
             Console.WriteLine("Total: S/ " + operacion.CalcularTotal());
-
             Console.WriteLine();
-            Console.Write("Confirmar entrega (S/N): ");
             
-            string confirmacion = Console.ReadLine();
-            if (confirmacion == null || confirmacion.Trim().ToUpper() != "S")
+            string confirmacion;
+            do
             {
-                Console.WriteLine("Operacion cancelada.");
+                Console.Write("Confirmar entrega (S/N): ");
+                confirmacion = Console.ReadLine();
+
+                if (confirmacion != null)
+                    confirmacion = confirmacion.Trim().ToUpper();
+
+                if (confirmacion == "S" || confirmacion == "N")
+                    break;
+
+                ImprimirEnConsola.Error("Opcion invalida. Ingrese S o N.");
+            } while (true);
+
+            if (confirmacion == "N")
+            {
+                ImprimirEnConsola.Warning("Operacion cancelada.");
                 return;
             }
 
             bool resultado = distribuidora.RegistrarOperacion(operacion);
             if (resultado)
             {
-                Console.WriteLine("Entrega registrada correctamente.");
+                ImprimirEnConsola.Success("Entrega registrada correctamente.");
+
+                Console.WriteLine();
                 ConsultarInventario();
             } else
             {
-                Console.WriteLine("No hay suficientes bidones llenos.");
-                Console.WriteLine("La operacion no fue registrada.");
+                ImprimirEnConsola.Warning("No hay suficientes bidones llenos.");
+                ImprimirEnConsola.Error("La operacion no fue registrada.");
             }
+
+            Console.WriteLine();
         }
 
+        // Muestra las existencias actuales de bidones.
         private void ConsultarInventario()
         {
-            Console.WriteLine("===== INVENTARIO =====");
+            ImprimirEnConsola.Info("===== INVENTARIO =====");
             Console.WriteLine($"Bidones llenos: {distribuidora.BidonesLlenos}");
             Console.WriteLine($"Bidones vacios: {distribuidora.BidonesVacios}");
+            Console.WriteLine();
         }
 
+        // Solicita el abastecimiento mediante Distribuidora.
         private void AbastecerBidones()
         {
-            Console.WriteLine("===== ABASTECIMIENTO =====");
-            Console.Write("Cantidad de bidones a abastecer: ");
+            ImprimirEnConsola.Info("===== ABASTECIMIENTO =====");
 
-            if (!int.TryParse(Console.ReadLine(), out int cantidad))
+            int cantidad;
+            do
             {
-                Console.WriteLine("Ingrese una cantidad valida.");
-                return;
-            }
+                Console.Write("Cantidad de bidones a abastecer: ");
+                if (int.TryParse(Console.ReadLine(), out cantidad) && cantidad > 0) break;
+
+                ImprimirEnConsola.Error("Ingrese una cantidad mayor que cero.");
+                Console.WriteLine();
+            } while (true);
+
 
             bool resultado = distribuidora.Abastecer(cantidad);
             if (resultado)
             {
-                Console.WriteLine("Abastecimiento realizado correctamente.");
+                ImprimirEnConsola.Success("Abastecimiento realizado correctamente.");
+
+                Console.WriteLine();
                 ConsultarInventario();
             } else
             {
-                Console.WriteLine("No hay suficientes bidones vacios.");
+                ImprimirEnConsola.Warning("No hay suficientes bidones vacios.");
             }
+            Console.WriteLine();
         }
 
+        // Recorre y muestra las operaciones registradas.
         private void ConsultarHistorial()
         {
-            Console.WriteLine("===== HISTORIAL =====");
+            ImprimirEnConsola.Info("===== HISTORIAL =====");
 
             if (distribuidora.CantidadOperaciones == 0)
             {
@@ -197,11 +251,14 @@ namespace ProyectoU1
                 Console.WriteLine("Fecha: " + operacion.Fecha);
                 Console.WriteLine("Total: S/ " + operacion.CalcularTotal());
             }
+
+            Console.WriteLine();
         }
 
+        // Presenta los totales de entregas y recaudacion.
         private void VerReporte()
         {
-            Console.WriteLine("===== REPORTE DE OPERACIONES =====");
+            ImprimirEnConsola.Info("===== REPORTE DE OPERACIONES =====");
 
             int totalBidones = 0;
             int totalVaciosRecibidos = 0;
@@ -223,7 +280,7 @@ namespace ProyectoU1
             ConsultarInventario();
         }
 
-
+        // Mantiene el menu activo hasta seleccionar salir.
         public void Run()
         {
             while (ejecucion)
